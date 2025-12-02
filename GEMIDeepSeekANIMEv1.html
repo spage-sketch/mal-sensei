@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NITRO ANALYTICS V8 // GRAPHQL SPEEDSTER</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <style>
+        :root{--bg:#050505;--card:#111;--text:#e0e0e0;--muted:#888;--accent:#00ff88;--blue:#00d9ff;--red:#ff0066;--gold:#ffd700;--line:#222;--shadow:rgba(0,255,136,0.4)}
+        body{margin:0;padding:20px;background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
+            background-image:linear-gradient(rgba(0,255,136,.03)1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,.03)1px,transparent 1px);
+            background-size:40px 40px;overflow-x:hidden;}
+        .container{max-width:1400px;margin:auto;text-align:center;}
+        h1{font-size:3.2rem;margin:30px 0;background:linear-gradient(90deg,var(--accent),var(--blue));
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 30px var(--shadow);}
+        #drop-zone{border:4px dashed var(--accent);padding:80px;border-radius:20px;background:rgba(0,255,136,.08);cursor:pointer;transition:.4s;margin:40px auto;max-width:600px;}
+        #drop-zone:hover,#drop-zone.highlight{background:rgba(0,255,136,.2);box-shadow:0 0 60px var(--shadow);transform:scale(1.02);}
+        #drop-zone h2{font-size:2.2rem;margin:0 0 15px 0;color:var(--accent);}
+        #drop-zone p{color:var(--muted);margin:10px 0;}
+        .hidden{display:none;}
+        .dashboard{margin-top:40px;}
+        
+        /* New V3 Grids */
+        .grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:40px 0;}
+        .grid-full{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;margin:40px 0;}
+
+        .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:25px;box-shadow:0 10px 30px rgba(0,0,0,.7);text-align:left;}
+        .card-header{font-size:1.4rem;color:var(--blue);border-left:3px solid var(--accent);padding-left:10px;margin-bottom:15px;}
+        .big-num{font-size:4rem;font-weight:bold;color:var(--accent);text-align:center;text-shadow:0 0 20px var(--shadow);}
+        .label{color:var(--muted);text-transform:uppercase;font-size:1rem;margin-top:8px;text-align:center;}
+        
+        /* Personality */
+        #personality-box{text-align:center;padding:20px;margin-bottom:30px;border:1px solid var(--accent);border-radius:14px;}
+        #personality-title{font-size:2rem;color:var(--accent);margin:0;text-shadow:0 0 15px var(--shadow);}
+        #personality-desc{font-style:italic;color:var(--muted);margin-top:10px;}
+
+        /* Insights */
+        .insight-item{padding:8px 0;border-bottom:1px dashed #333;}
+        .insight-title{color:var(--red);font-weight:bold;}
+        .insight-val{color:var(--text);margin-top:4px;font-size:1.1rem;}
+
+        /* Buttons & Fetch */
+        .btn-group{margin:50px 0;text-align:center;}
+        .btn{background:var(--accent);color:#000;padding:12px 24px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;font-size:1rem;margin:8px;transition:.3s;}
+        .btn:hover{transform:scale(1.05);box-shadow:0 0 20px var(--accent);}
+        .progress{width:100%;height:20px;background:#333;border-radius:10px;overflow:hidden;margin:10px 0;}
+        .progress-bar{height:100%;background:var(--accent);width:0%;transition:width .6s;box-shadow:0 0 15px var(--accent);}
+        #statusMsg{margin-top:20px;font-size:1.1rem;color:var(--accent);}
+        .error-msg{color:var(--red);background:rgba(255,0,102,.1);padding:15px;border-radius:8px;margin:20px 0;}
+        .badge{background:var(--blue);color:var(--bg);padding:4px 8px;border-radius:4px;font-size:0.9rem;display:inline-block;margin:5px;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>NITRO ANALYTICS V8 // GRAPHQL SPEEDSTER</h1>
+    <p style="color:#888;font-size:1rem;">AniList GraphQL Batch Processing za stabilan i brzi Shadow Fetch</p>
+
+    <div id="drop-zone">
+        <h2>DROP MAL XML / CSV</h2>
+        <p>ili klikni za odabir</p>
+        <input type="file" id="fileInput" accept=".xml,.csv" style="display:none">
+    </div>
+
+    <div id="dashboard" class="dashboard hidden">
+        
+        <div id="personality-box">
+            <div id="personality-title">Analiza u tijeku...</div>
+            <div id="personality-desc">Učitavam tvoj anime arhetip.</div>
+            <div id="personality-comment">"..."</div>
+        </div>
+
+        <div class="grid-kpi">
+            <div class="card"><div class="big-num" id="completed">0</div><div class="label">Završeno</div></div>
+            <div class="card"><div class="big-num" id="mean">0.00</div><div class="label">Prosjek</div></div>
+            <div class="card"><div class="big-num" id="eps">0</div><div class="label">Epizoda</div></div>
+            <div class="card"><div class="big-num" id="days">0</div><div class="label">Dana</div></div>
+            <div class="card"><div class="big-num" style="color:var(--gold)" id="tens">0</div><div class="label">10/10</div></div>
+        </div>
+
+        <div class="grid-full">
+            <div class="card">
+                <div class="card-header">STATUS DISTRIBUCIJA</div>
+                <canvas id="statusChart"></canvas>
+            </div>
+            <div class="card">
+                <div class="card-header">OCJENE vs MAL PROSJEK</div>
+                <canvas id="vsChart"></canvas>
+                <div id="vsError" style="color:var(--muted);text-align:center;margin-top:10px;">(Prikazat će se nakon Shadow Fetcha)</div>
+            </div>
+            <div class="card">
+                <div class="card-header">GLEDA NJE PO GODINAMA</div>
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="grid-full">
+            <div class="card">
+                <div class="card-header">DUBINSKA ANALIZA</div>
+                <div class="insight-item"><div class="insight-title">Tvoj Arhetip:</div><div class="insight-val" id="insight-archetype"></div></div>
+                <div class="insight-item"><div class="insight-title">Najduži Maraton:</div><div class="insight-val" id="insight-marathon"></div></div>
+                <div class="insight-item"><div class="insight-title">Najkontroverznija 10:</div><div class="insight-val" id="insight-controversial"></div></div>
+                <div class="insight-item"><div class="insight-title">Najveći Jaz (Tvoja ocjena):</div><div class="insight-val" id="insight-gap"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header">PREPORUKE (COSINE)</div>
+                <div id="recsContent" style="min-height: 100px;"></div>
+            </div>
+            <div class="card">
+                <div class="card-header">ACHIEVEMENTI</div>
+                <div id="achievementsContent" style="text-align:center;min-height: 100px;"></div>
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" id="shadowBtn">SHADOW FETCH</button>
+            <button class="btn" onclick="exportJSON()">EXPORT JSON</button>
+            <button class="btn" onclick="generateInfographic()">INFOGRAFIKA</button>
+            <button class="btn" onclick="location.reload()">NOVA ANALIZA</button>
+        </div>
+
+        <div id="statusMsg"></div>
+    </div>
+</div>
+
+<script>
+let data = [], enriched = [];
+let statusChartInstance, vsChartInstance, timelineChartInstance, genreChartInstance;
+
+// Drag & Drop + Klik za sve browser-e
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('fileInput');
+dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add('highlight'); };
+dropZone.ondragleave = e => { e.preventDefault(); dropZone.classList.remove('highlight'); };
+dropZone.ondrop = e => { e.preventDefault(); dropZone.classList.remove('highlight'); processFile(e.dataTransfer.files[0]); };
+dropZone.onclick = () => fileInput.click();
+fileInput.onchange = e => processFile(e.target.files[0]);
+
+
+// VITALNI PATCH: Vraćena stabilnost parsiranja (V6 logic)
+function processFile(file) {
+    if (!file) return;
+    document.getElementById('statusMsg').textContent = `Učitavam: ${file.name}...`;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try { 
+            document.getElementById('statusMsg').textContent = "Datoteka učitana – parsiram...";
+            if (file.name.endsWith('.xml')) parseXML(e.target.result);
+            else Papa.parse(e.target.result, {header:true, skipEmptyLines:true, complete: r => { data = r.data.map(normalizeRow); go(); }});
+        } catch (error) {
+            document.getElementById('statusMsg').innerHTML = `<div class="error-msg">❌ Greška pri parsiranju. Provjeri format datoteke! Detalji: ${error.message}</div>`;
+            document.getElementById('drop-zone').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            console.error("Fatalna greška pri parsiranju:", error);
+        }
+    };
+    reader.readAsText(file);
+}
+
+function parseXML(text) {
+    const xml = new DOMParser().parseFromString(text, 'text/xml');
+    data = Array.from(xml.querySelectorAll('anime')).map(a => ({
+        title: a.querySelector('series_title')?.textContent || '',
+        mal_id: parseInt(a.querySelector('series_animedb_id')?.textContent || 0) || null,
+        score: parseInt(a.querySelector('my_score')?.textContent) || 0,
+        status: normalizeStatus(parseInt(a.querySelector('my_status')?.textContent) || a.querySelector('my_status')?.textContent || 'Unknown'),
+        watched: parseInt(a.querySelector('my_watched_episodes')?.textContent)||0,
+        totalEp: parseInt(a.querySelector('series_episodes')?.textContent)||0,
+        tags: (a.querySelector('my_tags')?.textContent||'').split(',').map(t=>t.trim()).filter(Boolean),
+        year: parseInt((a.querySelector('my_finish_date')?.textContent || a.querySelector('my_start_date')?.textContent)?.slice(0,4) || 0) || 0
+    }));
+    go();
+}
+
+function normalizeRow(r) {
+    return {
+        title: r.series_title || r.title || '',
+        mal_id: parseInt(r.series_animedb_id || r.mal_id || 0) || null,
+        score: parseInt(r.my_score || r.score || 0),
+        status: normalizeStatus(r.my_status || r.status || 'Unknown'),
+        watched: parseInt(r.my_watched_episodes || 0),
+        totalEp: parseInt(r.series_episodes || 0),
+        tags: (r.my_tags || r.tags || '').split(',').map(t=>t.trim()).filter(Boolean),
+        year: parseInt(r.year || r.start_date?.slice(0,4) || 0) || 0
+    };
+}
+
+function normalizeStatus(s) {
+    if (typeof s === 'number') return ['','Watching','Completed','On-Hold','Dropped','','Plan to Watch'][s] || 'Unknown';
+    return s.toLowerCase().includes('watch') ? 'Watching' : s.toLowerCase().includes('complete') ? 'Completed' : s.toLowerCase().includes('hold') ? 'On-Hold' : s.toLowerCase().includes('drop') ? 'Dropped' : s.toLowerCase().includes('plan') ? 'Plan to Watch' : 'Unknown';
+}
+
+function go() {
+    enriched = data.map(a => ({...a, apiGenres: a.tags || [], malScore: null}));
+    document.getElementById('drop-zone').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    updateStats();
+    renderInitialCharts();
+    determinePersonality();
+    renderInsights();
+    renderRecommendations();
+    renderAchievements();
+    document.getElementById('statusMsg').textContent = "GOTOVO! Pokreni Shadow Fetch za obogaćivanje podataka (AniList).";
+}
+
+function updateStats() {
+    const comp = data.filter(a=>a.status==='Completed').length;
+    const scored = data.filter(a=>a.score>0);
+    const mean = scored.length ? (scored.reduce((s,a)=>s+a.score,0)/scored.length).toFixed(2) : 0;
+    const eps = data.reduce((s,a)=>s+a.watched,0);
+    document.getElementById('completed').textContent = comp;
+    document.getElementById('mean').textContent = mean;
+    document.getElementById('eps').textContent = eps;
+    document.getElementById('days').textContent = Math.round(eps*24/60/24);
+    document.getElementById('tens').textContent = data.filter(a=>a.score===10).length;
+}
+
+// NOVI V8 BATCH FETCH LOGIC (AniList GraphQL)
+async function batchFetchAnimeData(malIds) {
+    const queries = malIds.map((id, index) => `
+        anime${index}: Media(idMal: ${id}) {
+            genres
+            averageScore
+            title { romaji }
+        }
+    `).join('\n');
+    
+    const query = `query { ${queries} }`;
+    
+    try {
+        const res = await fetch('https://graphql.anilist.co', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+        });
+        
+        const data = await res.json();
+        return data.data; 
+    } catch (e) {
+        console.error("Batch fetch failed:", e);
+        return {};
+    }
+}
+
+document.getElementById('shadowBtn').onclick = async () => {
+    const btn = document.getElementById('shadowBtn');
+    const msg = document.getElementById('statusMsg');
+    btn.disabled = true;
+    btn.textContent = 'Fetching...';
+    msg.innerHTML = '<div class="progress"><div class="progress-bar" id="bar"></div></div><div id="log">Počinjem Shadow Fetch (AniList GraphQL)...</div>';
+
+    const malIdsToFetch = enriched.filter(a => a.mal_id && !a.malScore).map(a => a.mal_id);
+    const itemsToFetchCount = malIdsToFetch.length;
+    const batchSize = 20; 
+    let processedCount = 0;
+
+    for (let i = 0; i < malIdsToFetch.length; i += batchSize) {
+        const batch = malIdsToFetch.slice(i, i + batchSize);
+        document.getElementById('log').textContent = `Dohvaćam batch: ${i+1} - ${Math.min(i + batchSize, itemsToFetchCount)}`;
+
+        const results = await batchFetchAnimeData(batch);
+        
+        Object.values(results).forEach((animeData, idx) => {
+            if (!animeData) return;
+            const malId = batch[idx];
+            const item = enriched.find(a => a.mal_id === malId);
+
+            if (item) {
+                // AniList ocjena je iz 100, skaliramo na 10
+                item.apiGenres = animeData.genres || item.tags;
+                item.malScore = animeData.averageScore ? (animeData.averageScore / 10).toFixed(2) : null;
+            }
+        });
+
+        processedCount = i + batch.length;
+        document.getElementById('bar').style.width = (processedCount / itemsToFetchCount * 100) + '%';
+        
+        if (processedCount < itemsToFetchCount) {
+             await new Promise(r => setTimeout(r, 500)); // Manji delay između batch upita
+        }
+    }
+
+    msg.innerHTML = `<div style="color:var(--accent);font-size:1.5rem;">SHADOW FETCH ZAVRŠEN! ${processedCount}/${itemsToFetchCount} obogaćeno!</div>`;
+    btn.disabled = false;
+    btn.textContent = 'SHADOW FETCH (SVI NASLOVI)';
+    
+    // Ažuriraj sve grafike i analize s novim podacima
+    renderCharts();
+    renderInsights(); 
+    renderRecommendations();
+    renderAchievements();
+};
+
+function renderInitialCharts() {
+    // Status Chart
+    const statusCounts = {};
+    data.forEach(a => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1; });
+    const statusCtx = document.getElementById('statusChart');
+    if (statusChartInstance) statusChartInstance.destroy();
+    statusChartInstance = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(statusCounts),
+            datasets: [{
+                data: Object.values(statusCounts),
+                backgroundColor: ['#00ff88', '#00d9ff', '#ff0066', '#ffd700', '#88ff00']
+            }]
+        },
+        options: { plugins: { legend: { position: 'right', labels: { color: 'white' } } } }
+    });
+
+    // Ti vs MAL (Fallback poruka)
+    document.getElementById('vsChart').parentNode.innerHTML = '<p style="text-align:center;color:var(--muted);height:100px;">Pokreni Shadow Fetch za usporedbu</p><canvas id="vsChart"></canvas>';
+
+    // Timeline Chart
+    const years = {};
+    enriched.forEach(a => {
+        if (a.year > 0 && a.status === 'Completed') years[a.year] = (years[a.year] || 0) + 1;
+    });
+    const sortedYears = Object.entries(years).sort((a,b)=>a[0]-b[0]);
+    const timelineCtx = document.getElementById('timelineChart');
+    if (timelineChartInstance) timelineChartInstance.destroy();
+    timelineChartInstance = new Chart(timelineCtx, {
+        type: 'line',
+        data: {
+            labels: sortedYears.map(x=>x[0]),
+            datasets: [{
+                label: 'Completed po godini',
+                data: sortedYears.map(x=>x[1]),
+                borderColor: '#00d9ff',
+                backgroundColor: 'rgba(0,217,255,0.2)',
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: { 
+            scales: { 
+                y: { beginAtZero: true, ticks: { color: 'white' } },
+                x: { ticks: { color: 'white' } } 
+            },
+            plugins: { legend: { labels: { color: 'white' } } }
+        }
+    });
+}
+
+function renderCharts() {
+    // Ažuriraj VS Chart (MAL vs Ti)
+    const diff = enriched.filter(a=>a.score>0 && a.malScore);
+    const vsCtx = document.getElementById('vsChart');
+    
+    if (vsChartInstance) vsChartInstance.destroy();
+    
+    vsChartInstance = new Chart(vsCtx, {
+        type:'bar',
+        data:{labels:[], datasets:[]},
+        options:{scales:{y:{max:10, min:0, ticks:{color:'white'}}}, plugins:{legend:{labels:{color:'white'}}}},
+    });
+    
+    if (diff.length > 5) {
+        vsChartInstance.data.labels = diff.slice(0,15).map(a=>a.title.slice(0,18) + '...');
+        vsChartInstance.data.datasets = [
+            {label:'Tvoja Ocjena',data:diff.slice(0,15).map(a=>a.score),backgroundColor:'#00ff88'},
+            {label:'AniList Prosjek',data:diff.slice(0,15).map(a=>a.malScore),backgroundColor:'#ff0066'}
+        ];
+        vsChartInstance.update();
+        document.getElementById('vsError').textContent = `Prikazano 15/ ${diff.length} uspješnih usporedbi (AniList).`;
+    } else {
+        document.getElementById('vsChart').parentNode.innerHTML = '<p style="text-align:center;color:var(--muted);height:100px;">Nema dovoljno (min. 5) API podataka za usporedbu.</p><canvas id="vsChart"></canvas>';
+    }
+
+    // Ažuriraj Genre Chart s obogaćenim podacima
+    const g = {};
+    enriched.forEach(a => a.apiGenres.forEach(x => g[x] = (g[x] || 0) + 1));
+    const top = Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const genreCtx = document.getElementById('genreChart');
+    if (genreChartInstance) genreChartInstance.destroy();
+    genreChartInstance = new Chart(genreCtx, {
+        type: 'doughnut',
+        data: {
+            labels: top.map(x=>x[0]),
+            datasets: [{
+                data: top.map(x=>x[1]),
+                backgroundColor: ['#00ff88','#00d9ff','#ff0066','#ffd700','#ff8800','#88ff00','#0088ff','#ff0088','#00ff00','#ffff00']
+            }]
+        },
+        options: { plugins: { legend: { position: 'right', labels: { color: 'white' } } } }
+    });
+}
+
+
+function determinePersonality() {
+    const mean = parseFloat(document.getElementById('mean').textContent);
+    const tens = parseInt(document.getElementById('tens').textContent);
+    const completed = parseInt(document.getElementById('completed').textContent);
+    let archetype = 'The Balanced Viewer';
+    let desc = 'Vidiš raznovrsne žanrove, balansiraš između novog i starog.';
+    let quote = '„Zanimljiv profil. Imaš ukus, ali si previše siguran u svoje ocjene.”';
+    if (mean > 8.5) { archetype = 'The Generous Critic'; desc = 'Daješ visoke ocjene, vjerojatno uživaš u većini što gledaš.'; quote = '„Malo si popustljiv s ocjenama, ali barem znaš uživati.”'; }
+    if (mean < 6 && mean > 0) { archetype = 'The Harsh Judge'; desc = 'Strog u ocjenjivanju, teško zadovoljiv.'; quote = '„Zahtjevan si, ali pošten.”'; }
+    if (tens > 20) { archetype = 'The Perfectionist'; desc = 'Tražiš samo remek-djela.'; quote = '„Standardi su visoki, samo tako nastavi.”'; }
+    if (completed > 200) { archetype = 'The Marathon Master'; desc = 'Legenda binge-watchinga. Završavaš gotovo sve što počneš.'; quote = '„Impresivna upornost. Neki kažu tvrdoglavost, ja kažem karakter.”'; }
+    
+    document.getElementById('personality-title').textContent = archetype;
+    document.getElementById('personality-desc').textContent = desc;
+    document.getElementById('personality-comment').textContent = quote;
+    document.getElementById('insight-archetype').textContent = archetype;
+}
+
+function renderInsights() {
+    const scored = data.filter(a => a.score > 0);
+    // Najduži Maraton
+    const longest = data.length ? data.slice().sort((a,b) => b.totalEp - a.totalEp)[0] : null;
+    document.getElementById('insight-marathon').textContent = longest ? `${longest.title} (${longest.totalEp} ep)` : 'N/A';
+    // Najkontroverznija
+    const tens = scored.filter(a => a.score === 10);
+    const controversial = tens.length ? tens.sort((a,b) => (a.totalEp||999) - (b.totalEp||999))[0] : null;
+    document.getElementById('insight-controversial').textContent = controversial ? `${controversial.title} (10/10 na ${controversial.totalEp} ep)` : 'Nema kontroverznih desetki';
+    // Najveći Jaz (Najniža ocjena)
+    const worst = scored.length ? scored.sort((a,b) => a.score - b.score)[0] : null;
+    document.getElementById('insight-gap').textContent = worst ? `${worst.title} (${worst.score}/10)` : 'N/A';
+
+    if (enriched.filter(a => a.malScore).length < 5) {
+        document.getElementById('recsContent').innerHTML = '<p style="color:var(--muted);">Pokreni Shadow Fetch za preporuke na temelju žanrova!</p>';
+        document.getElementById('achievementsContent').innerHTML = '<p style="color:var(--muted);">Pokreni Shadow Fetch za analizu achievementa!</p>';
+    }
+}
+
+function renderRecommendations() {
+    const c = document.getElementById('recsContent'); c.innerHTML = '';
+    const allGenres = new Set();
+    enriched.forEach(a => a.apiGenres.forEach(g => allGenres.add(g)));
+    const genreList = Array.from(allGenres);
+    const vectors = enriched.map(a => {
+        const vec = new Array(genreList.length).fill(0);
+        a.apiGenres.forEach(g => {
+            const idx = genreList.indexOf(g);
+            if (idx !== -1) vec[idx] = a.score > 0 ? a.score : 5;
+        });
+        return {title: a.title, vec};
+    });
+    const recs = [];
+    vectors.forEach((target, i) => {
+        const sims = vectors.map((other, j) => i === j ? 0 : cosineSimilarity(target.vec, other.vec));
+        const topIdx = sims.indexOf(Math.max(...sims));
+        if (topIdx !== -1 && sims[topIdx] > 0.6 && data[i].score >= 9) recs.push(`Preporuka za ${data[i].title} => Slično ${vectors[topIdx].title} (sim: ${sims[topIdx].toFixed(2)})`);
+    });
+    const uniqueRecs = [...new Set(recs)].slice(0,5);
+    c.innerHTML = uniqueRecs.map(r => `<p class="insight-item">${r}</p>`).join('') || '<p class="error-msg">Nema preporuka (potrebno je više ocjenjenih naslova).</p>';
+}
+
+function cosineSimilarity(vecA, vecB) {
+    const dot = vecA.reduce((s, v, i) => s + v * vecB[i], 0);
+    const magA = Math.sqrt(vecA.reduce((s, v) => s + v * v, 0));
+    const magB = Math.sqrt(vecB.reduce((s, v) => s + v * v, 0));
+    return magA && magB ? dot / (magA * magB) : 0;
+}
+
+function renderAchievements() {
+    const c = document.getElementById('achievementsContent'); c.innerHTML = '';
+    const completed = parseInt(document.getElementById('completed').textContent);
+    const mean = parseFloat(document.getElementById('mean').textContent);
+    const eps = parseInt(document.getElementById('eps').textContent);
+    const tens = parseInt(document.getElementById('tens').textContent);
+    const controversial = enriched.filter(a => a.score === 10 && a.malScore < 8).length;
+    const badges = [];
+    if (completed >= 100) badges.push('🏅 Completionist God');
+    if (mean > 8.5) badges.push('👑 Taste Aristocrat');
+    if (eps > 5000) badges.push('⚙️ Marathon Demon');
+    if (tens > 10) badges.push('✨ Masterpiece Hunter');
+    if (controversial > 5) badges.push('🔥 Controversial Chad');
+    c.innerHTML = badges.map(b => `<span class="badge">${b}</span>`).join('<br>') || '<p>Nema još značajnih achievementa.</p>';
+}
+
+function exportJSON() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(enriched, null, 2)], {type: 'application/json'}));
+    a.download = 'nitro_v8_enriched.json';
+    a.click();
+}
+
+function generateInfographic() {
+    const html = `<!DOCTYPE html><html><body style="background:#050505;color:#e0e0e0;font-family:monospace;text-align:center;padding:50px;">
+        <h1 style="color:#00ff88;">NITRO ANALYTICS V8</h1>
+        <p style="font-size:1.5rem;">Završeno: ${document.getElementById('completed').textContent}</p>
+        <p>Prosjek: ${document.getElementById('mean').textContent}</p>
+        <p>Epizoda: ${document.getElementById('eps').textContent}</p>
+        <p>Dana: ${document.getElementById('days').textContent}</p>
+        <p>10/10: ${document.getElementById('tens').textContent}</p>
+        <p style="color:#888;margin-top:50px;">Generated ${new Date().toLocaleDateString()}</p>
+    </body></html>`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], {type: 'text/html'}));
+    a.download = 'nitro_infographic.html';
+    a.click();
+}
+</script>
+</body>
+</html>

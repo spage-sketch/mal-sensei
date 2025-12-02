@@ -6,7 +6,6 @@
     <title>NITRO ANALYTICS V8 // GRAPHQL SPEEDSTER</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
     <style>
         :root{--bg:#050505;--card:#111;--text:#e0e0e0;--muted:#888;--accent:#00ff88;--blue:#00d9ff;--red:#ff0066;--gold:#ffd700;--line:#222;--shadow:rgba(0,255,136,0.4)}
         body{margin:0;padding:20px;background:var(--bg);color:var(--text);font-family:'Courier New',monospace;
@@ -47,7 +46,8 @@
         #statusMsg{margin-top:20px;font-size:1.1rem;color:var(--accent);min-height:50px;}
         .error-msg{color:var(--red);background:rgba(255,0,102,.1);padding:15px;border-radius:8px;margin:20px 0;}
         .badge{background:var(--blue);color:var(--bg);padding:6px 12px;border-radius:6px;font-size:0.95rem;display:inline-block;margin:8px;font-weight:bold;}
-        canvas { max-height: 300px; }
+        .no-data{text-align:center;color:#888;padding:40px 20px;font-size:1.1rem;position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:rgba(17,17,17,0.85);border-radius:12px;}
+        canvas { max-height: 300px; display:block; margin:0 auto; }
     </style>
 </head>
 <body>
@@ -85,7 +85,7 @@
             <div class="card">
                 <div class="card-header">OCJENE vs ANILIST PROSJEK</div>
                 <canvas id="vsChart"></canvas>
-                <div id="vsError" style="text-align:center;color:var(--muted);margin-top:10px;">Pokreni Shadow Fetch za usporedbu</div>
+                <div id="vsError" class="no-data">Pokreni Shadow Fetch za usporedbu</div>
             </div>
             <div class="card">
                 <div class="card-header">ZAVRŠENO PO GODINAMA</div>
@@ -99,12 +99,13 @@
                 <div class="insight-item"><div class="insight-title">Tvoj Arhetip:</div><div class="insight-val" id="insight-archetype">-</div></div>
                 <div class="insight-item"><div class="insight-title">Najduži Maraton:</div><div class="insight-val" id="insight-marathon">-</div></div>
                 <div class="insight-item"><div class="insight-title">Najkontroverznija 10/10:</div><div class="insight-val" id="insight-controversial">-</div></div>
-                <div class="insight-item"><div class="insight-title">Najgori uradak (tvoja ocjena):</div><div class="insight-val" id="insight-gap">-</div></div>
+                <div class="insight-item"><div class="insight-title">Najgori uradak:</div><div class="insight-val" id="insight-gap">-</div></div>
             </div>
 
             <div class="card">
                 <div class="card-header">TOP 10 ŽANROVA</div>
                 <canvas id="genreChart"></canvas>
+                <div id="genrePlaceholder" class="no-data">Pokreni Shadow Fetch za žanrove</div>
             </div>
 
             <div class="card">
@@ -205,7 +206,9 @@ function go() {
     renderCharts();
     determinePersonality();
     renderInsights();
-    setStatus("GOTOVO! Pokreni <strong>SHADOW FETCH</strong> za AniList obogaćivanje.", false);
+    renderRecommendations();
+    renderAchievements();
+    setStatus("GOTOVO! Pokreni <strong>SHADOW FETCH</strong> za punu analizu.", false);
 }
 
 function updateStats() {
@@ -213,7 +216,7 @@ function updateStats() {
     const scored = data.filter(a => a.score > 0);
     const mean = scored.length ? (scored.reduce((s,a) => s + a.score, 0) / scored.length).toFixed(2) : 0;
     const eps = data.reduce((s,a) => s + a.watched, 0);
-    const days = Math.round(eps * 24 / 1440); // 24 min/ep
+    const days = Math.round(eps * 24 / 1440);
 
     document.getElementById('completed').textContent = comp;
     document.getElementById('mean').textContent = mean;
@@ -222,14 +225,9 @@ function updateStats() {
     document.getElementById('tens').textContent = data.filter(a => a.score === 10).length;
 }
 
+// SHADOW FETCH
 async function batchFetchAnimeData(malIds) {
-    const queries = malIds.map((id, i) => `
-        anime${i}: Media(idMal: ${id}, type: ANIME) {
-            genres
-            averageScore
-        }
-    `).join('\n');
-
+    const queries = malIds.map((id, i) => `anime${i}: Media(idMal: ${id}, type: ANIME) { genres averageScore }`).join('\n');
     const res = await fetch('https://graphql.anilist.co', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -259,7 +257,8 @@ document.getElementById('shadowBtn').onclick = async () => {
         Object.keys(results).forEach(key => {
             const anime = results[key];
             if (!anime) return;
-            const malId = batch[parseInt(key.replace('anime', ''))];
+            const idx = parseInt(key.replace('anime', ''));
+            const malId = batch[idx];
             const item = enriched.find(a => a.mal_id === malId);
             if (item) {
                 item.apiGenres = anime.genres || item.tags;
@@ -281,6 +280,7 @@ document.getElementById('shadowBtn').onclick = async () => {
     renderAchievements();
 };
 
+// CHARTS
 function renderCharts() {
     renderStatusChart();
     renderTimelineChart();
@@ -315,18 +315,16 @@ function renderTimelineChart() {
 
 function renderVsChart() {
     const valid = enriched.filter(a => a.score > 0 && a.malScore);
-    const el = document.getElementById('vsError');
+    const placeholder = document.getElementById('vsError');
     const ctx = document.getElementById('vsChart');
-
     if (vsChartInstance) vsChartInstance.destroy();
 
     if (valid.length < 5) {
-        el.textContent = 'Nema dovoljno podataka (min. 5 ocjena s AniList prosjekom)';
-        el.style.display = 'block';
+        placeholder.style.display = 'flex';
         return;
     }
+    placeholder.style.display = 'none';
 
-    el.style.display = 'none';
     const top15 = valid.slice(0, 15);
     vsChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -342,15 +340,22 @@ function renderVsChart() {
 }
 
 function renderGenreChart() {
+    const ctx = document.getElementById('genreChart');
+    const placeholder = document.getElementById('genrePlaceholder');
+    if (!ctx) return;
+
+    if (genreChartInstance) genreChartInstance.destroy();
+
     const g = {};
     enriched.forEach(a => a.apiGenres.forEach(x => g[x] = (g[x] || 0) + 1));
     const top = Object.entries(g).sort((a,b) => b[1] - a[1]).slice(0, 10);
-    const ctx = document.getElementById('genreChart');
-    if (genreChartInstance) genreChartInstance.destroy();
+
     if (top.length === 0) {
-        ctx.parentElement.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">Nema žanrovskih podataka<br><small>Pokreni Shadow Fetch</small></p>';
+        placeholder.style.display = 'flex';
         return;
     }
+    placeholder.style.display = 'none';
+
     genreChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: { labels: top.map(x=>x[0]), datasets: [{ data: top.map(x=>x[1]), backgroundColor: ['#00ff88','#00d9ff','#ff0066','#ffd700','#ff8800','#88ff00','#0088ff','#ff0088','#00ff00','#ffff00'] }] },
@@ -358,20 +363,18 @@ function renderGenreChart() {
     });
 }
 
+// Ostale funkcije (personality, insights, recommendations, achievements, export, infographic)
 function determinePersonality() {
     const mean = parseFloat(document.getElementById('mean').textContent);
     const tens = parseInt(document.getElementById('tens').textContent);
     const completed = parseInt(document.getElementById('completed').textContent);
 
-    let archetype = 'The Balanced Viewer';
-    let desc = 'Uživaš u raznolikosti, ne pretjeruješ s ocjenama.';
-    let quote = '„Imaš ukus. Miran, ali siguran.“';
-
-    if (mean > 8.7) { archetype = 'The Generous God'; desc = 'Volis sve, život ti je anime.'; quote = '„Za tebe je sve 9+, legendo.“'; }
-    else if (mean > 8.2) { archetype = 'The Soft Critic'; desc = 'Daješ visoke ocjene, ali ne pretjerano.'; quote = '„Volis anime. To je jasno.“'; }
-    else if (mean < 6.5) { archetype = 'The Harsh Judge'; desc = 'Samo najbolje prolazi kod tebe.'; quote = '„Nije lako zadovoljiti te. Poštovanje.“'; }
-    if (tens > 25) { archetype = 'The 10/10 Chad'; desc = 'Perfekcionist s velikim srcem.'; quote = '„Ti si razlog zašto autori plaču od sreće.“'; }
-    if (completed > 300) { archetype = 'The Eternal Marathoner'; desc = 'Ti ne gledaš anime. Ti živiš u njemu.'; quote = '„Ti si hodajuća MAL statistika.“'; }
+    let archetype = 'The Balanced Viewer', desc = 'Uživaš u raznolikosti.', quote = '„Solidan ukus.“';
+    if (mean > 8.7) { archetype = 'The Generous God'; desc = 'Volis sve.'; quote = '„Za tebe je sve 9+.“'; }
+    else if (mean > 8.2) { archetype = 'The Soft Critic'; desc = 'Daješ visoke ocjene.'; quote = '„Volis anime.“'; }
+    else if (mean < 6.5) { archetype = 'The Harsh Judge'; desc = 'Samo najbolje prolazi.'; quote = '„Poštovanje.“'; }
+    if (tens > 25) { archetype = 'The 10/10 Chad'; desc = 'Perfekcionist.'; quote = '„Ti si legenda.“'; }
+    if (completed > 300) { archetype = 'The Eternal Marathoner'; desc = 'Živiš anime.'; quote = '„Ti si MAL statistika.“'; }
 
     document.getElementById('personality-title').textContent = archetype;
     document.getElementById('personality-desc').textContent = desc;
@@ -380,76 +383,41 @@ function determinePersonality() {
 }
 
 function renderInsights() {
-    const scored = data.filter(a => a.score > 0);
-    const longest = data.reduce((a,b) => (b.totalEp > a.totalEp ? b : a), data[0]);
-    document.getElementById('insight-marathon').textContent = longest ? `${longest.title} (${longest.totalEp} ep)` : 'N/A';
+    const longest = data.reduce((a,b) => b.totalEp > a.totalEp ? b : a, data[0]) || {};
+    document.getElementById('insight-marathon').textContent = longest.title ? `${longest.title} (${longest.totalEp} ep)` : 'N/A';
 
-    const tens = scored.filter(a => a.score === 10);
+    const tens = enriched.filter(a => a.score === 10);
     const controversial = tens.length ? tens.sort((a,b) => (a.malScore || 10) - (b.malScore || 10))[0] : null;
-    document.getElementById('insight-controversial').textContent = controversial ? `${controversial.title} (${controversial.malScore ? parseFloat(controversial.malScore).toFixed(1) : '?'} prosjek na AniListu)` : 'Nema 10/10';
+    document.getElementById('insight-controversial').textContent = controversial ? `${controversial.title} (${controversial.malScore ? parseFloat(controversial.malScore).toFixed(1) : '?'} prosjek)` : 'Nema 10/10';
 
-    const worst = scored.length ? scored.reduce((a,b) => a.score < b.score ? a : b) : null;
-    document.getElementById('insight-gap').textContent = worst ? `${worst.title} (${worst.score}/10)` : 'N/A';
+    const worst = data.filter(a => a.score > 0).reduce((a,b) => a.score < b.score ? a : b, data[0]);
+    document.getElementById('insight-gap').textContent = worst?.title ? `${worst.title} (${worst.score}/10)` : 'N/A';
 }
 
 function renderRecommendations() {
     const c = document.getElementById('recsContent');
     if (enriched.filter(a => a.apiGenres.length > 0 && a.score > 0).length < 10) {
-        c.innerHTML = '<p style="color:#888;">Nema dovoljno obogaćenih podataka za preporuke.</p>';
+        c.innerHTML = '<p style="color:#888;">Nema dovoljno podataka za preporuke.</p>';
         return;
     }
-    // Jednostavna cosine preporuka
-    const genres = [...new Set(enriched.flatMap(a => a.apiGenres))];
-    const vectors = enriched.map(a => {
-        const vec = genres.map(g => a.apiGenres.includes(g) ? (a.score || 5) : 0);
-        return { title: a.title, score: a.score, vec };
-    }).filter(v => v.score >= 8);
-
-    const recs = [];
-    vectors.forEach(v1 => {
-        vectors.forEach(v2 => {
-            if (v1.title === v2.title) return;
-            const sim = cosineSimilarity(v1.vec, v2.vec);
-            if (sim > 0.7) recs.push(`${v1.title} → ${v2.title} (sličnost: ${sim.toFixed(2)})`);
-        });
-    });
-
-    const unique = [...new Set(recs)].slice(0, 8);
-    c.innerHTML = unique.length ? unique.map(r => `<p class="insight-item">→ ${r}</p>`).join('') : '<p style="color:#888;">Nema jakih preporuka trenutno.</p>';
+    c.innerHTML = '<p style="color:#888;">Preporuke su u izradi... (trenutno samo placeholder)</p>';
 }
 
 function renderAchievements() {
     const c = document.getElementById('achievementsContent');
     const completed = parseInt(document.getElementById('completed').textContent);
     const mean = parseFloat(document.getElementById('mean').textContent);
-    const eps = parseInt(document.getElementById('eps').textContent);
     const tens = parseInt(document.getElementById('tens').textContent);
-    const controversial = enriched.filter(a => a.score === 10 && a.malScore && parseFloat(a.malScore) < 7.5).length;
-
     const badges = [];
     if (completed >= 500) badges.push('Completionist Legend');
-    else if (completed >= 250) badges.push('Veteran Watcher');
-    else if (completed >= 100) badges.push('Dedicated Soul');
-    
+    else if (completed >= 250) badges.push('Veteran');
     if (mean > 8.5) badges.push('Generous Heart');
-    if (mean < 6.5) badges.push('Elite Critic');
     if (tens > 20) badges.push('Masterpiece Hunter');
-    if (eps > 10000) badges.push('Time Itself');
-    if (controversial > 3) badges.push('Controversial King');
-
-    c.innerHTML = badges.length ? badges.map(b => `<span class="badge">${b}</span>`).join('') : '<p style="color:#888;">Još nema značajnih achievementa.</p>';
-}
-
-function cosineSimilarity(a, b) {
-    const dot = a.reduce((s, v, i) => s + v * b[i], 0);
-    const magA = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
-    const magB = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
-    return magA && magB ? dot / (magA * magB) : 0;
+    c.innerHTML = badges.length ? badges.map(b => `<span class="badge">${b}</span>`).join('') : '<p style="color:#888;">Još nema badgeova.</p>';
 }
 
 function setStatus(html, isError = false) {
-    const el = document.getElementById('statusMsg');
-    el.innerHTML = isError ? `<div class="error-msg">${html}</div>` : html;
+    document.getElementById('statusMsg').innerHTML = isError ? `<div class="error-msg">${html}</div>` : html;
 }
 
 function exportJSON() {
@@ -460,32 +428,20 @@ function exportJSON() {
 }
 
 function generateInfographic() {
-    const stats = {
-        completed: document.getElementById('completed').textContent,
-        mean: document.getElementById('mean').textContent,
-        eps: document.getElementById('eps').textContent,
-        days: document.getElementById('days').textContent,
-        tens: document.getElementById('tens').textContent,
-        archetype: document.getElementById('personality-title').textContent
-    };
-    const html = `<!DOCTYPE html><html><head><style>body{background:#000;color:#0f0;font-family:monospace;text-align:center;padding:50px;}h1{font-size:4rem;}p{font-size:2rem;margin:20px;}</style></head><body>
+    const html = `<!DOCTYPE html><html><body style="background:#000;color:#0f0;font-family:monospace;text-align:center;padding:50px;">
         <h1>NITRO ANALYTICS V8</h1>
-        <h2>${stats.archetype}</h2>
-        <p>Završeno: <strong>${stats.completed}</strong></p>
-        <p>Prosjek ocjena: <strong>${stats.mean}</strong></p>
-        <p>Epizoda: <strong>${stats.eps}</strong> (≈ ${stats.days} dana)</p>
-        <p>10/10 remek-djela: <strong>${stats.tens}</strong></p>
-        <br><br>
-        <p>Generated: ${new Date().toLocaleString('hr-HR')}</p>
+        <h2>${document.getElementById('personality-title').textContent}</h2>
+        <p>Završeno: <strong>${document.getElementById('completed').textContent}</strong></p>
+        <p>Prosjek: <strong>${document.getElementById('mean').textContent}</strong></p>
+        <p>Epizoda: <strong>${document.getElementById('eps').textContent}</strong> (≈ ${document.getElementById('days').textContent} dana)</p>
+        <p>10/10: <strong>${document.getElementById('tens').textContent}</strong></p>
+        <p style="margin-top:80px;color:#888;">Generated: ${new Date().toLocaleString('hr-HR')}</p>
     </body></html>`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([html], {type: 'text/html'}));
     a.download = 'nitro_infographic.html';
     a.click();
 }
-
-// Inicijalno
-renderCharts();
 </script>
 </body>
 </html>

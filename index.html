@@ -67,7 +67,7 @@
 
         <div class="chart-container">
             <div class="chart-title">Achievementi</div>
-            <div id="achievements" style="padding:1rem;text-align:center"></div>
+            <div id="achievements" style="padding:1rem;text-align:center;font-size:1.1rem"></div>
         </div>
 
         <div style="text-align:center">
@@ -145,8 +145,89 @@ function updateAll() {
     renderAchievements();
 }
 
-// Ostatak koda (updateStats, renderPersonality, renderCharts, itd.) – isti kao u prethodnoj poruci
-// (zbog ograničenja duljine, stavljam samo ključne ispravke – cijeli kod je ispod)
+function updateStats() {
+    const completed = data.filter(a => a.status === 'Completed' || a.status === '2').length;
+    const scored = data.filter(a => a.score > 0);
+    const mean = scored.length ? (scored.reduce((s,a)=>s+a.score,0)/scored.length).toFixed(2) : '0.00';
+    const eps = data.reduce((s,a)=>s+a.watched,0);
+    const days = Math.round(eps*24/60/24);
+    const tens = data.filter(a=>a.score===10).length;
+    document.getElementById('completed').textContent = completed;
+    document.getElementById('mean').textContent = mean;
+    document.getElementById('eps').textContent = eps;
+    document.getElementById('days').textContent = days;
+    document.getElementById('tens').textContent = tens;
+}
+
+function renderPersonality() {
+    const m = parseFloat(document.getElementById('mean').textContent);
+    const c = parseInt(document.getElementById('completed').textContent);
+    const t = parseInt(document.getElementById('tens').textContent);
+    let arch = "Uravnoteženi Putnik";
+    if(m>=9 && t>15) arch = "Apsolutni Purist";
+    else if(m>=8.5) arch = "Ukusni Aristokrat";
+    else if(c>300) arch = "Maratonac Demon";
+    else if(t>20) arch = "Masterpiece Hunter";
+    else if(m<7) arch = "Kontroverzni Chad";
+    document.getElementById('personality-title').textContent = arch;
+    document.getElementById('sensei-comment').textContent = quotes[Math.floor(Math.random()*quotes.length)];
+}
+
+function destroyChart(id) { if(charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function renderCharts() {
+    const g = {}; enriched.forEach(a => a.apiGenres.forEach(t => g[t] = (g[t]||0)+1));
+    const top = Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    destroyChart('genreChart');
+    charts.genreChart = new Chart(document.getElementById('genreChart'), {type:'doughnut',data:{labels:top.map(x=>x[0]),datasets:[{data:top.map(x=>x[1]),backgroundColor:['#d4af37','#2a9d8f','#e9c46a','#e76f51','#8b6d1f','#f4e8c1','#264653','#e63946','#06d6a0','#9d4edd']}]}});
+
+    const y = {}; enriched.forEach(a => { if(a.endDate && a.endDate !== '0000-00-00' && /^\d{4}/.test(a.endDate)) { y[a.endDate.split('-')[0]] = (y[a.endDate.split('-')[0]]||0)+1; }});
+    const years = Object.keys(y).sort();
+    destroyChart('timelineChart');
+    charts.timelineChart = new Chart(document.getElementById('timelineChart'), {type:'line',data:{labels:years||['Nema'],datasets:[{label:'Završeno po godini',data:Object.values(y)||[0],borderColor:'#d4af37',backgroundColor:'rgba(212,175,55,.2)',fill:true,tension:0.3}]}});
+}
+
+function renderTopTable() {
+    const top = enriched.filter(a=>a.score>=9).sort((a,b)=>b.score-a.score).slice(0,20);
+    const tb = document.getElementById('topTable'); tb.innerHTML = '';
+    top.forEach(a => tb.innerHTML += `<tr><td>${a.title}</td><td style="color:#d4af37;font-weight:bold">${a.score}/10</td><td>${a.watched}/${a.totalEp||'?'}</td></tr>`);
+}
+
+function renderRecommendations() {
+    const all = new Set(); enriched.forEach(a => a.apiGenres.forEach(t => all.add(t)));
+    const list = Array.from(all);
+    if(list.length < 2) { document.getElementById('recs').innerHTML = '<p>Nedovoljno žanrova za preporuke.</p>'; return; }
+    const vecs = enriched.map(a => ({title:a.title,score:a.score,vec:list.map(t=>a.apiGenres.includes(t)?(a.score||5):0)}));
+    const recs = [];
+    vecs.filter(v=>v.score>=9).forEach(t => {
+        const sims = vecs.map(o => ({title:o.title,sim:cosineSimilarity(t.vec,o.vec)})).filter(o=>o.title!==t.title);
+        sims.sort((a,b)=>b.sim-a.sim);
+        if(sims[0]?.sim>0.3) recs.push(`${t.title} → <strong>${sims[0].title}</strong> (${sims[0].sim.toFixed(2)})`);
+    });
+    document.getElementById('recs').innerHTML = recs.length ? recs.slice(0,8).map(r=>`<div style="margin:.5rem 0">${r}</div>`).join('') : '<p>Nema dovoljno sličnih remek-djela.</p>';
+}
+
+function cosineSimilarity(a,b){let d=0,m1=0,m2=0;for(let i=0;i<a.length;i++){d+=a[i]*b[i];m1+=a[i]*a[i];m2+=b[i]*b[i];}return m1&&m2?d/(Math.sqrt(m1)*Math.sqrt(m2)):0;}
+
+function renderAchievements() {
+    const c = parseInt(document.getElementById('completed').textContent);
+    const m = parseFloat(document.getElementById('mean').textContent);
+    const t = parseInt(document.getElementById('tens').textContent);
+    const badges = [];
+    if(c>=100) badges.push('Completionist');
+    if(m>8.5) badges.push('Taste Aristocrat');
+    if(t>10) badges.push('Masterpiece Hunter');
+    const cont = enriched.filter(a=>a.score===10 && a.malScore && a.malScore<8).length;
+    if(cont>0) badges.push(`Controversial Chad (${cont})`);
+    document.getElementById('achievements').innerHTML = badges.length ? badges.map(b=>`<span style="background:#e9c46a;color:#000;padding:.4rem .8rem;border-radius:4px;margin:.3rem">${b}</span>`).join('') : '<p>Još nema značajnih postignuća!</p>';
+}
+
+function exportJSON() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(enriched,null,2)],{type:'application/json'}));
+    a.download = 'mal_sensei_enriched.json';
+    a.click();
+}
 
 document.getElementById('shadowBtn').onclick = async () => {
     const btn = document.getElementById('shadowBtn');
@@ -155,39 +236,35 @@ document.getElementById('shadowBtn').onclick = async () => {
     const bar = document.getElementById('bar');
     progress.classList.remove('hidden');
     btn.disabled = true;
-    btn.textContent = 'Sensei priziva duhove...';
-    msg.textContent = 'Počinjem obogaćivanje...';
+    btn.textContent = 'Sensei priziva...';
+    msg.textContent = 'Počinjem...';
 
     const toFetch = enriched.filter(a => a.mal_id && !a.malScore);
     let success = 0;
 
     for (let i = 0; i < toFetch.length; i++) {
         const item = toFetch[i];
-        bar.style.width = ((i + 1) / toFetch.length * 100) + '%';
-        msg.textContent = `Obrađujem: ${item.title} (${i + 1}/${toFetch.length})`;
+        bar.style.width = ((i+1)/toFetch.length*100)+'%';
+        msg.textContent = `Obrađujem: ${item.title} (${i+1}/${toFetch.length})`;
 
         let fetched = false;
 
-        // 1. AniList GraphQL
+        // AniList GraphQL
         try {
             const res = await fetch('https://graphql.anilist.co', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    query: `query($id:Int){Media(idMal:$id){genres score}}`,
-                    variables: { id: item.mal_id }
-                })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({query: `query($id:Int){Media(idMal:$id){genres score}}`, variables:{id:item.mal_id}})
             });
             const json = await res.json();
             if (json.data?.Media) {
                 item.apiGenres = json.data.Media.genres || item.tags;
-                item.malScore = json.data.Media.score ? (json.data.Media.score / 10).toFixed(2) : null;
-                success++;
-                fetched = true;
+                item.malScore = json.data.Media.score ? (json.data.Media.score/10).toFixed(2) : null;
+                success++; fetched = true;
             }
-        } catch (e) {}
+        } catch(e) {}
 
-        // 2. Jikan fallback (sa delayem)
+        // Jikan fallback
         if (!fetched) {
             try {
                 await new Promise(r => setTimeout(r, 2200));
@@ -195,33 +272,22 @@ document.getElementById('shadowBtn').onclick = async () => {
                 if (res.ok) {
                     const json = await res.json();
                     if (json.data) {
-                        item.apiGenres = json.data.genres?.map(g => g.name) || item.tags;
+                        item.apiGenres = json.data.genres?.map(g=>g.name) || item.tags;
                         item.malScore = json.data.score || null;
                         success++;
                     }
                 }
-            } catch (e) { console.log('Jikan fail za', item.title); }
+            } catch(e) {}
         }
     }
 
     bar.style.width = '100%';
-    msg.innerHTML = `<strong>Završeno! Obogaćeno ${success} od ${toFetch.length} naslova.</strong>`;
+    msg.innerHTML = `<strong>Završeno! Obogaćeno ${success} naslova.</strong>`;
     btn.disabled = false;
     btn.textContent = 'SHADOW FETCH (ponovo)';
-    setTimeout(() => progress.classList.add('hidden'), 4000);
+    setTimeout(() => progress.classList.add('hidden'), 3000);
     updateAll();
 };
-
-function exportJSON() {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(enriched, null, 2)], { type: 'application/json' }));
-    a.download = 'mal_sensei_enriched.json';
-    a.click();
-}
-
-// Dodaj sve ostale funkcije (updateStats, renderPersonality, itd.) – iste kao u prethodnom kodu
-// Ako ti treba puni kod sa svim funkcijama, javi – šaljem odmah!
-
 </script>
 </body>
 </html>

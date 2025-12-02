@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAL-SENSEI V9.2 // OFFLINE EDITION</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <style>
+        :root{--bg:#0f0f0f;--paper:#1a1a1a;--text:#e8e3d9;--accent:#d4af37;--accent-dark:#8b6d1f;--accent-light:#f4e8c1;--serif:'Georgia',serif;--sans:'Segoe UI',sans-serif;--border:#3a3529;--success:#2a9d8f;--warning:#e9c46a;--danger:#e76f51}
+        body{margin:0;padding:20px;background:var(--bg);color:var(--text);font-family:var(--sans);background-image:radial-gradient(circle at 25% 25%,rgba(212,175,55,.03)0%,transparent 55%),radial-gradient(circle at 75% 75%,rgba(42,157,143,.02)0%,transparent 55%);line-height:1.6}
+        .container{max-width:1400px;margin:auto}
+        header{text-align:center;padding:2rem 1rem;border-bottom:2px solid var(--border);margin-bottom:2rem}
+        h1{font-family:var(--serif);font-size:3.5rem;color:var(--accent-light);margin:0;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,0,0,.5)}
+        #drop-zone{border:3px dashed var(--accent);background:rgba(212,175,55,.05);padding:4rem 2rem;text-align:center;border-radius:12px;cursor:pointer;transition:all .3s;margin-bottom:3rem;font-family:var(--serif)}
+        #drop-zone:hover{background:rgba(212,175,55,.1);box-shadow:0 0 30px rgba(212,175,55,.15)}
+        .hidden{display:none}
+        .profile-banner{background:var(--paper);border-left:6px solid var(--accent);padding:1.5rem;border-radius:8px;margin-bottom:2rem;box-shadow:0 5px 15px rgba(0,0,0,.3)}
+        .personality-title{font-family:var(--serif);font-size:1.8rem;color:var(--accent-light);margin:0 0 .5rem 0}
+        .sensei-quote{font-style:italic;color:var(--warning);margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:2rem}
+        .stat-card{background:var(--paper);padding:1.5rem;border-radius:8px;border-top:4px solid var(--accent-dark);box-shadow:0 3px 10px rgba(0,0,0,.2);text-align:center;transition:transform .2s}
+        .stat-card:hover{transform:translateY(-5px)}
+        .stat-number{font-size:3rem;font-weight:bold;color:var(--accent-light);margin:.5rem 0}
+        .stat-label{color:var(--accent);font-size:.9rem;text-transform:uppercase;letter-spacing:1px}
+        .chart-container{background:var(--paper);padding:1.5rem;border-radius:8px;margin-bottom:2rem;box-shadow:0 5px 15px rgba(0,0,0,.3)}
+        .chart-title{font-family:var(--serif);font-size:1.5rem;color:var(--accent-light);margin:0 0 1rem 0;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+        .insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-bottom:2rem}
+        .insight-card{background:var(--paper);padding:1.5rem;border-radius:8px;border-left:4px solid var(--success)}
+        .insight-card.warning{border-left-color:var(--warning)}
+        .insight-card.danger{border-left-color:var(--danger)}
+        .insight-title{font-family:var(--serif);font-size:1.3rem;color:var(--accent-light);margin-bottom:.5rem}
+        table{width:100%;border-collapse:collapse;margin-top:1rem}
+        th{background:var(--accent-dark);color:#000;padding:12px;text-align:left}
+        td{padding:10px;border-bottom:1px solid #333}
+        tr:hover{background:rgba(212,175,55,.1)}
+        .badge{background:var(--warning);color:#1a1a1a;padding:.4rem .8rem;border-radius:4px;font-size:.9rem;margin:0 .3rem}
+        .btn{background:var(--accent);color:#1a1a1a;padding:1rem 2rem;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin:1rem;transition:all .3s}
+        .btn:hover{transform:translateY(-3px);box-shadow:0 5px 15px rgba(212,175,55,.4)}
+    </style>
+</head>
+<body>
+<div class="container">
+    <header><h1>MAL-SENSEI V9.2</h1><p style="color:var(--accent);font-style:italic">Offline Edition – sve radi bez interneta</p></header>
+
+    <div id="drop-zone"><h2>Predaj svoju listu senseiju</h2><p>XML ili CSV iz MyAnimeList</p><input type="file" id="fileInput" accept=".xml,.csv" style="display:none"></div>
+
+    <div id="dashboard" class="dashboard hidden">
+        <div class="profile-banner">
+            <div id="personality-title" class="personality-title">Analiza u tijeku...</div>
+            <div id="personality-desc"></div>
+            <div class="sensei-quote" id="sensei-comment"></div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-number" id="completed">0</div><div class="stat-label">Završeno</div></div>
+            <div class="stat-card"><div class="stat-number" id="mean">0.00</div><div class="stat-label">Prosjek</div></div>
+            <div class="stat-card"><div class="stat-number" id="eps">0</div><div class="stat-label">Epizoda</div></div>
+            <div class="stat-card"><div class="stat-number" id="days">0</div><div class="stat-label">Dana</div></div>
+            <div class="stat-card"><div class="stat-number" id="tens">0</div><div class="stat-label">10/10</div></div>
+        </div>
+
+        <div class="insights-grid">
+            <div class="insight-card"><div class="insight-title">Najduži maraton</div><div id="marathon">-</div></div>
+            <div class="insight-card warning"><div class="insight-title">Najgori rating</div><div id="worst">-</div></div>
+            <div class="insight-card"><div class="insight-title">Achievementi</div><div id="achievements"></div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;">
+            <div class="chart-container"><div class="chart-title">Žanrovi / Tagovi</div><canvas id="genreChart"></canvas></div>
+            <div class="chart-container"><div class="chart-title">Tvoj put kroz vrijeme</div><canvas id="timelineChart"></canvas></div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Top 20 remek-djela</div>
+            <table><thead><tr><th>Naslov</th><th>Ocjena</th><th>Epizoda</th><th>Status</th></tr></thead><tbody id="topTable"></tbody></table>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Preporuke (na temelju tvojih tagova)</div>
+            <div id="recs" style="padding:1rem;font-size:1.1rem;color:#bbb;"></div>
+        </div>
+
+        <div style="text-align:center">
+            <button onclick="exportJSON()" class="btn">EXPORT JSON</button>
+            <button onclick="generateInfographic()" class="btn">INFOGRAFIJA</button>
+            <button onclick="location.reload()" class="btn">NOVA ANALIZA</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let data = [];
+let charts = {};
+const quotes = [
+    "Tvoj put je poput sakure – kratak, ali vječno lijep.",
+    "U svakoj epizodi tražiš istinu.",
+    "Ti si ronin među gledateljima.",
+    "Anime nije hobi – to je filozofija.",
+    "Srce ti kuca u ritmu openinga koji nikad ne preskačeš."
+];
+
+// Drag & drop
+document.getElementById('drop-zone').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = e => e.target.files[0] && processFile(e.target.files[0]);
+
+function processFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+        const text = e.target.result;
+        if (file.name.endsWith('.xml')) parseXML(text);
+        else parseCSV(text);
+    };
+    reader.readAsText(file);
+}
+
+function parseXML(text) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+    const entries = doc.querySelectorAll('anime');
+    data = Array.from(entries).map(a => ({
+        title: a.querySelector('series_title')?.textContent || '???',
+        score: parseInt(a.querySelector('my_score')?.textContent) || 0,
+        status: a.querySelector('my_status')?.textContent || '',
+        watched: parseInt(a.querySelector('my_watched_episodes')?.textContent) || 0,
+        totalEp: parseInt(a.querySelector('series_episodes')?.textContent) || 0,
+        endDate: a.querySelector('my_finish_date')?.textContent || '',
+        tags: (a.querySelector('my_tags')?.textContent || '').split(',').map(t => t.trim()).filter(Boolean)
+    }));
+    startAnalysis();
+}
+
+function parseCSV(text) {
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+    data = parsed.data.map(r => ({
+        title: r.title || r.series_title || '',
+        score: parseInt(r.my_score || r.score || 0),
+        status: r.my_status || r.status || '',
+        watched: parseInt(r.my_watched_episodes || 0),
+        totalEp: parseInt(r.series_episodes || r.episodes || 0),
+        endDate: r.my_finish_date || '',
+        tags: (r.my_tags || r.tags || '').split(',').map(t => t.trim()).filter(Boolean)
+    }));
+    startAnalysis();
+}
+
+function startAnalysis() {
+    document.getElementById('drop-zone').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    updateAll();
+}
+
+function updateAll() {
+    updateStats();
+    renderPersonality();
+    renderInsights();
+    renderCharts();
+    renderTopTable();
+    renderRecommendations();
+    renderAchievements();
+}
+
+function updateStats() {
+    const completed = data.filter(a => a.status === 'Completed' || a.status === '2').length;
+    const scored = data.filter(a => a.score > 0);
+    const mean = scored.length ? (scored.reduce((s, a) => s + a.score, 0) / scored.length).toFixed(2) : '0.00';
+    const eps = data.reduce((s, a) => s + a.watched, 0);
+    const days = Math.round(eps * 24 / 60 / 24);
+    const tens = data.filter(a => a.score === 10).length;
+
+    document.getElementById('completed').textContent = completed;
+    document.getElementById('mean').textContent = mean;
+    document.getElementById('eps').textContent = eps;
+    document.getElementById('days').textContent = days;
+    document.getElementById('tens').textContent = tens;
+}
+
+function renderPersonality() {
+    const mean = parseFloat(document.getElementById('mean').textContent);
+    const completed = parseInt(document.getElementById('completed').textContent);
+    const tens = parseInt(document.getElementById('tens').textContent);
+
+    let archetype = "Uravnoteženi Putnik";
+    let desc = "Znaš uživati u svemu – od trash do klasika.";
+
+    if (mean >= 9 && tens > 15) { archetype = "Apsolutni Purist"; desc = "Samo remek-djela prolaze tvoj filter."; }
+    else if (mean >= 8.5) { archetype = "Ukusni Aristokrat"; desc = "Tvoj ukus je iznad prosjeka."; }
+    else if (completed > 300) { archetype = "Maratonac Demon"; desc = "Količina i kvaliteta – ti si enciklopedija."; }
+    else if (tens > 20) { archetype = "Masterpiece Hunter"; desc = "Loviš savršenstvo."; }
+    else if (mean < 7) { archetype = "Kontroverzni Chad"; desc = "Ne bojiš se svog stava."; }
+
+    document.getElementById('personality-title').textContent = archetype;
+    document.getElementById('personality-desc').textContent = desc;
+    document.getElementById('sensei-comment').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+}
+
+function renderInsights() {
+    const longest = data.sort((a, b) => b.totalEp - a.totalEp)[0];
+    document.getElementById('marathon').textContent = longest ? `${longest.title} – ${longest.totalEp} ep` : '—';
+
+    const worst = data.filter(a => a.score > 0).sort((a, b) => a.score - b.score)[0];
+    document.getElementById('worst').textContent = worst ? `${worst.title} (${worst.score}/10)` : '—';
+}
+
+function destroyChart(id) {
+    if (charts[id]) {
+        charts[id].destroy();
+        delete charts[id];
+    }
+}
+
+function renderCharts() {
+    // Žanrovi / Tagovi
+    const genreCount = {};
+    data.forEach(a => a.tags.forEach(t => genreCount[t] = (genreCount[t] || 0) + 1));
+    const topGenres = Object.entries(genreCount).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+    destroyChart('genreChart');
+    charts['genreChart'] = new Chart(document.getElementById('genreChart'), {
+        type: 'doughnut',
+        data: {
+            labels: topGenres.map(x => x[0]),
+            datasets: [{ data: topGenres.map(x => x[1]), backgroundColor: ['#d4af37','#2a9d8f','#e9c46a','#e76f51','#8b6d1f','#f4e8c1','#264653','#e63946','#06d6a0','#9d4edd'] }]
+        }
+    });
+
+    // Timeline
+    const years = {};
+    data.forEach(a => {
+        if (a.endDate && a.endDate !== '0000-00-00' && /^\d{4}-\d{2}-\d{2}$/.test(a.endDate)) {
+            const year = a.endDate.split('-')[0];
+            years[year] = (years[year] || 0) + 1;
+        }
+    });
+    const yearLabels = Object.keys(years).sort();
+    const yearData = Object.values(years);
+
+    destroyChart('timelineChart');
+    charts['timelineChart'] = new Chart(document.getElementById('timelineChart'), {
+        type: 'line',
+        data: {
+            labels: yearLabels.length ? yearLabels : ['Nema datuma'],
+            datasets: [{
+                label: 'Završeno po godini',
+                data: yearData.length ? yearData : [0],
+                borderColor: '#d4af37',
+                backgroundColor: 'rgba(212,175,55,.2)',
+                tension: 0.3,
+                fill: true
+            }]
+        }
+    });
+}
+
+function renderTopTable() {
+    const top = data.filter(a => a.score >= 9).sort((a, b) => b.score - a.score).slice(0, 20);
+    const tbody = document.getElementById('topTable');
+    tbody.innerHTML = '';
+    top.forEach(a => {
+        tbody.innerHTML += `<tr><td>${a.title}</td><td style="color:#d4af37;font-weight:bold">${a.score}/10</td><td>${a.watched}/${a.totalEp || '?'}</td><td>${a.status === 'Completed' || a.status === '2' ? 'Završeno' : 'U tijeku'}</td></tr>`;
+    });
+}
+
+function renderRecommendations() {
+    const allTags = new Set();
+    data.forEach(a => a.tags.forEach(t => allTags.add(t)));
+    const tagList = Array.from(allTags);
+
+    if (tagList.length < 2) {
+        document.getElementById('recs').innerHTML = '<p>Nema dovoljno tagova za preporuke.</p>';
+        return;
+    }
+
+    const vectors = data.map(a => ({
+        title: a.title,
+        score: a.score,
+        vec: tagList.map(tag => a.tags.includes(tag) ? (a.score || 5) : 0)
+    }));
+
+    const highRated = vectors.filter(v => v.score >= 9);
+    const recs = [];
+
+    highRated.forEach(target => {
+        const similarities = vectors.map(other => ({
+            title: other.title,
+            sim: cosineSimilarity(target.vec, other.vec)
+        })).filter(o => o.title !== target.title);
+
+        similarities.sort((a, b) => b.sim - a.sim);
+        if (similarities[0]?.sim > 0.3) {
+            recs.push(`${target.title} → <strong>${similarities[0].title}</strong> (sličnost ${similarities[0].sim.toFixed(2)})`);
+        }
+    });
+
+    const uniqueRecs = [...new Set(recs)].slice(0, 8);
+    document.getElementById('recs').innerHTML = uniqueRecs.length 
+        ? uniqueRecs.map(r => `<div style="margin:0.5rem 0">${r}</div>`).join('')
+        : '<p>Nema dovoljno sličnih visoko ocijenjenih naslova.</p>';
+}
+
+function cosineSimilarity(a, b) {
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        magA += a[i] * a[i];
+        magB += b[i] * b[i];
+    }
+    return (magA && magB) ? dot / (Math.sqrt(magA) * Math.sqrt(magB)) : 0;
+}
+
+function renderAchievements() {
+    const completed = parseInt(document.getElementById('completed').textContent);
+    const mean = parseFloat(document.getElementById('mean').textContent);
+    const eps = parseInt(document.getElementById('eps').textContent);
+    const tens = parseInt(document.getElementById('tens').textContent);
+
+    const badges = [];
+    if (completed >= 100) badges.push('Completionist God');
+    if (mean > 8.5) badges.push('Taste Aristocrat');
+    if (eps > 5000) badges.push('Marathon Demon');
+    if (tens > 10) badges.push('Masterpiece Hunter');
+    if (tens > 20) badges.push('10/10 Collector');
+
+    document.getElementById('achievements').innerHTML = badges.length
+        ? badges.map(b => `<span class="badge">${b}</span>`).join(' ')
+        : '<p>Još nema značajnih postignuća – nastavi gledati!</p>';
+}
+
+function exportJSON() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
+    a.download = 'mal_sensei_data.json';
+    a.click();
+}
+
+function generateInfographic() {
+    const html = `<!DOCTYPE html><html><body style="background:#0f0f0f;color:#e8e3d9;font-family:Georgia,serif;text-align:center;padding:50px;">
+        <h1 style="color:#d4af37;font-size:3rem">MAL-SENSEI V9.2</h1>
+        <p style="font-size:2rem">${document.getElementById('personality-title').textContent}</p>
+        <p style="font-style:italic;color:#e9c46a">"${document.getElementById('sensei-comment').textContent}"</p>
+        <hr style="border-color:#3a3529;margin:40px 0">
+        <p style="font-size:1.6rem">Završeno: ${document.getElementById('completed').textContent} • Prosjek: ${document.getElementById('mean').textContent}/10</p>
+        <p style="font-size:1.6rem">Epizoda: ${document.getElementById('eps').textContent} • Dana: ${document.getElementById('days').textContent}</p>
+        <p style="font-size:1.6rem">10/10 remek-djela: ${document.getElementById('tens').textContent}</p>
+        <p style="color:#888;margin-top:50px">Generated ${new Date().toLocaleDateString('hr-HR')}</p>
+    </body></html>`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], {type: 'text/html'}));
+    a.download = 'sensei_infographic.html';
+    a.click();
+}
+</script>
+</body>
+</html>

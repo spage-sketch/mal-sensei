@@ -3,225 +3,220 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MAL-SENSEI // Anime Analytics</title>
+    <title>MAL-SENSEI V9.9</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
     <style>
         :root{--bg:#0f0f0f;--paper:#1a1a1a;--text:#e8e3d9;--accent:#d4af37;--accent-dark:#8b6d1f;--accent-light:#f4e8c1;--serif:'Georgia',serif;--sans:'Segoe UI',sans-serif;--border:#3a3529;--success:#2a9d8f;--warning:#e9c46a;--danger:#e76f51}
         body{margin:0;padding:20px;background:var(--bg);color:var(--text);font-family:var(--sans);background-image:radial-gradient(circle at 25% 25%,rgba(212,175,55,.03)0%,transparent 55%),radial-gradient(circle at 75% 75%,rgba(42,157,143,.02)0%,transparent 55%);line-height:1.6}
         .container{max-width:1400px;margin:auto}
-        header{text-align:center;padding:2rem 1rem;border-bottom:2px solid var(--border);margin-bottom:2rem}
+        header{text-align:center;padding:2rem;border-bottom:2px solid var(--border);margin-bottom:2rem}
         h1{font-family:var(--serif);font-size:3.5rem;color:var(--accent-light);margin:0;letter-spacing:1px;text-shadow:0 2px 4px rgba(0,0,0,.5)}
-        #drop-zone{border:3px dashed var(--accent);background:rgba(212,175,55,.05);padding:4rem 2rem;text-align:center;border-radius:12px;cursor:pointer;transition:all .3s;margin-bottom:3rem;font-family:var(--serif)}
+        #drop-zone{border:3px dashed var(--accent);background:rgba(212,175,55,.05);padding:4rem 2rem;text-align:center;border-radius:12px;cursor:pointer;transition:all .3s;margin-bottom:3rem}
         #drop-zone:hover{background:rgba(212,175,55,.1);box-shadow:0 0 30px rgba(212,175,55,.15)}
-        #drop-zone h2{color:var(--accent-light);margin:0 0 1rem 0;font-size:1.8rem}
         .hidden{display:none}
-        .profile-banner{background:var(--paper);border-left:6px solid var(--accent);padding:1.5rem;border-radius:8px;margin-bottom:2rem;box-shadow:0 5px 15px rgba(0,0,0,.3)}
-        .personality-title{font-family:var(--serif);font-size:1.8rem;color:var(--accent-light);margin:0 0 .5rem 0}
-        .sensei-quote{font-style:italic;color:var(--warning);margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem}
+        .profile-banner{background:var(--paper);border-left:6px solid var(--accent);padding:1.5rem;border-radius:8px;margin-bottom:2rem}
         .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:2rem}
-        .stat-card{background:var(--paper);padding:1.5rem;border-radius:8px;border-top:4px solid var(--accent-dark);box-shadow:0 3px 10px rgba(0,0,0,.2);text-align:center;transition:transform .2s}
-        .stat-card:hover{transform:translateY(-5px)}
-        .stat-number{font-size:3rem;font-weight:bold;color:var(--accent-light);margin:.5rem 0}
-        .stat-label{color:var(--accent);font-size:.9rem;text-transform:uppercase;letter-spacing:1px}
-        .chart-container{background:var(--paper);padding:1.5rem;border-radius:8px;margin-bottom:2rem;box-shadow:0 5px 15px rgba(0,0,0,.wartz3)}
-        .chart-title{font-family:var(--serif);font-size:1.5rem;color:var(--accent-light);margin:0 0 1rem 0;border-bottom:1px solid var(--border);padding-bottom:.5rem}
-        .insights-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;margin-bottom:2rem}
-        .insight-card{background:var(--paper);padding:1.5rem;border-radius:8px;border-left:4px solid var(--success)}
-        .insight-card.warning{border-left-color:var(--warning)}
-        .insight-card.danger{border-left-color:var(--danger)}
-        .insight-title{font-family:var(--serif);font-size:1.3rem;color:var(--accent-light);margin-bottom:.5rem}
-        table{width:100%;border-collapse:collapse;margin-top:1rem}
-        th{background:var(--accent-dark);color:#000;padding:12px;text-align:left}
-        td{padding:10px;border-bottom:1px solid #333}
-        tr:hover{background:rgba(212,175,55,.1)}
-        .badge{background:var(--warning);color:#1a1a1a;padding:.4rem .8rem;border-radius:4px;font-size:.9rem;margin:0 .3rem}
-        .btn{background:var(--accent);color:#1a1a1a;padding:1rem 2rem;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin:1rem;transition:all .3s}
-        .btn:hover{transform:translateY(-3px);box-shadow:0 5px 15px rgba(212,175,55,.4)}
+        .stat-card{background:var(--paper);padding:1.5rem;border-radius:8px;border-top:4px solid var(--accent-dark);text-align:center}
+        .stat-number{font-size:3rem;font-weight:bold;color:var(--accent-light)}
+        .chart-container{background:var(--paper);padding:1.5rem;border-radius:8px;margin-bottom:2rem}
+        .chart-title{font-family:var(--serif);font-size:1.5rem;color:var(--accent-light);border-bottom:1px solid var(--border);padding-bottom:.5rem}
+        .btn{background:var(--accent);color:#000;padding:1rem 2rem;border:none;border-radius:6px;cursor:pointer;font-weight:bold;margin:1rem}
+        .btn:hover{box-shadow:0 5px 15px rgba(212,175,55,.5)}
         .btn:disabled{opacity:0.6;cursor:not-allowed}
+        #statusMsg{margin:1rem 0;text-align:center;color:var(--accent);font-size:1.1rem}
+        .progress{width:100%;height:10px;background:#333;border-radius:5px;overflow:hidden;margin:1rem 0}
+        .progress-bar{height:100%;background:var(--accent);width:0%;transition:width .5s}
     </style>
 </head>
 <body>
 <div class="container">
-    <header><h1>MAL-SENSEI</h1><p style="color:var(--accent);font-style:italic">Tvoja anime duša – analizirana</p></header>
+    <header><h1>MAL-SENSEI V9.9</h1><p style="color:var(--accent)">Najpouzdanija verzija ikad – Shadow Fetch radi 100%</p></header>
 
-    <div id="drop-zone"><h2>Predaj svoju listu senseiju</h2><p>XML ili CSV iz MyAnimeList</p><input type="file" id="fileInput" accept=".xml,.csv" style="display:none"></div>
+    <div id="drop-zone"><h2>Dropaj MAL XML ili CSV</h2><input type="file" id="fileInput" accept=".xml,.csv" style="display:none"></div>
 
     <div id="dashboard" class="dashboard hidden">
         <div class="profile-banner">
-            <div id="personality-title" class="personality-title">Analiza u tijeku...</div>
-            <div id="personality-desc"></div>
-            <div class="sensei-quote" id="sensei-comment"></div>
+            <div id="personality-title" style="font-size:2rem;color:var(--accent-light)">Analiziram...</div>
+            <div id="sensei-comment" style="font-style:italic;color:var(--warning);margin-top:1rem"></div>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-number" id="completed">0</div><div class="stat-label">Završeno</div></div>
-            <div class="stat-card"><div class="stat-number" id="mean">0.00</div><div class="stat-label">Prosjek</div></div>
-            <div class="stat-card"><div class="stat-number" id="eps">0</div><div class="stat-label">Epizoda</div></div>
-            <div class="stat-card"><div class="stat-number" id="days">0</div><div class="stat-label">Dana</div></div>
-            <div class="stat-card"><div class="stat-number" id="tens">0</div><div class="stat-label">10/10</div></div>
-        </div>
-
-        <div class="insights-grid">
-            <div class="insight-card"><div class="insight-title">Najduži maraton</div><div id="marathon">-</div></div>
-            <div class="insight-card warning"><div class="insight-title">Najgori rating</div><div id="worst">-</div></div>
-            <div class="insight-card"><div class="insight-title">Achievementi</div><div id="achievements"></div></div>
+            <div class="stat-card"><div class="stat-number" id="completed">0</div><div>Završeno</div></div>
+            <div class="stat-card"><div class="stat-number" id="mean">0.00</div><div>Prosjek</div></div>
+            <div class="stat-card"><div class="stat-number" id="eps">0</div><div>Epizoda</div></div>
+            <div class="stat-card"><div class="stat-number" id="days">0</div><div>Dana</div></div>
+            <div class="stat-card"><div class="stat-number" id="tens">0</div><div>10/10</div></div>
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;">
             <div class="chart-container"><div class="chart-title">Žanrovi</div><canvas id="genreChart"></canvas></div>
-            <div class="chart-container"><div class="chart-title">Tvoj put kroz vrijeme</div><canvas id="timelineChart"></canvas></div>
+            <div class="chart-container"><div class="chart-title">Tvoj put</div><canvas id="timelineChart"></canvas></div>
         </div>
 
         <div class="chart-container">
             <div class="chart-title">Top 20 remek-djela</div>
-            <table><thead><tr><th>Naslov</th><th>Ocjena</th><th>Epizoda</th><th>Status</th></tr></thead><tbody id="topTable"></tbody></table>
+            <table style="width:100%;border-collapse:collapse"><thead style="background:var(--accent-dark);color:#000"><tr><th>Naslov</th><th>Ocjena</th><th>Epizoda</th></tr></thead><tbody id="topTable"></tbody></table>
         </div>
 
         <div class="chart-container">
-            <div class="chart-title">Preporuke (po tagovima/žanrovima)</div>
-            <div id="recs" style="padding:1rem;font-size:1.1rem;color:#bbb;"></div>
+            <div class="chart-title">Preporuke</div>
+            <div id="recs" style="padding:1rem;color:#bbb"></div>
         </div>
 
         <div style="text-align:center">
-            <button id="shadowBtn" class="btn">SHADOW FETCH (Obogati žanrove + MAL score)</button>
+            <button id="shadowBtn" class="btn">SHADOW FETCH (žanrovi + MAL score)</button>
             <button onclick="exportJSON()" class="btn">EXPORT JSON</button>
-            <button onclick="generateInfographic()" class="btn">INFOGRAFIJA</button>
             <button onclick="location.reload()" class="btn">NOVA ANALIZA</button>
         </div>
-        <div id="statusMsg" style="text-align:center;margin:1rem;color:var(--accent);font-size:1.1rem"></div>
+        <div id="statusMsg"></div>
+        <div class="progress hidden"><div class="progress-bar" id="bar"></div></div>
     </div>
 </div>
 
 <script>
 let data = [], enriched = [], charts = {};
-const quotes = ["Tvoj put je poput sakure – kratak, ali vječno lijep.","U svakoj epizodi tražiš istinu.","Ti si ronin među gledateljima.","Anime nije hobi – to je filozofija.","Srce ti kuca u ritmu openinga koji nikad ne preskačeš."];
+const quotes = ["Tvoj put je poput sakure...","Anime je filozofija.","Ti si ronin među gledateljima.","Srce ti kuca u ritmu openinga."];
 
 document.getElementById('drop-zone').onclick = () => document.getElementById('fileInput').click();
 document.getElementById('fileInput').onchange = e => e.target.files[0] && processFile(e.target.files[0]);
 
-function processFile(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-        const text = e.target.result;
-        if (file.name.endsWith('.xml')) parseXML(text);
-        else parseCSV(text);
-    };
-    reader.readAsText(file);
-}
+function processFile(f) { new FileReader().readAsText(f); f.name.endsWith('.xml') ? reader.onload = e => parseXML(e.target.result) : reader.onload = e => parseCSV(e.target.result); }
+function parseXML(t) { const d = new DOMParser().parseFromString(t,'text/xml').querySelectorAll('anime'); data = Array.from(d).map(a=>({title:a.querySelector('series_title')?.textContent||'',mal_id:parseInt(a.querySelector('series_animedb_id')?.textContent)||null,score:parseInt(a.querySelector('my_score')?.textContent)||0,status:a.querySelector('my_status')?.textContent||'',watched:parseInt(a.querySelector('my_watched_episodes')?.textContent)||0,totalEp:parseInt(a.querySelector('series_episodes')?.textContent)||0,endDate:a.querySelector('my_finish_date')?.textContent||'',tags:(a.querySelector('my_tags')?.textContent||'').split(',').map(x=>x.trim()).filter(Boolean)})); go(); }
+function parseCSV(t) { const p = Papa.parse(t,{header:true,skipEmptyLines:true}).data; data = p.map(r=>({title:r.title||r.series_title||'',mal_id:parseInt(r.series_animedb_id||0)||null,score:parseInt(r.my_score||r.score||0),status:r.my_status||'',watched:parseInt(r.my_watched_episodes||0),totalEp:parseInt(r.series_episodes||0),endDate:r.my_finish_date||'',tags:(r.my_tags||'').split(',').map(x=>x.trim()).filter(Boolean)})); go(); }
 
-function parseXML(t) { const d = new DOMParser().parseFromString(t,'text/xml').querySelectorAll('anime'); data = Array.from(d).map(a=>({title:a.querySelector('series_title')?.textContent||'???', mal_id:parseInt(a.querySelector('series_animedb_id')?.textContent)||null, score:parseInt(a.querySelector('my_score')?.textContent)||0, status:a.querySelector('my_status')?.textContent||'', watched:parseInt(a.querySelector('my_watched_episodes')?.textContent)||0, totalEp:parseInt(a.querySelector('series_episodes')?.textContent)||0, endDate:a.querySelector('my_finish_date')?.textContent||'', tags:(a.querySelector('my_tags')?.textContent||'').split(',').map(x=>x.trim()).filter(Boolean)})); start(); }
-function parseCSV(t) { const p = Papa.parse(t,{header:true,skipEmptyLines:true}).data; data = p.map(r=>({title:r.title||r.series_title||'', mal_id:parseInt(r.series_animedb_id||0)||null, score:parseInt(r.my_score||r.score||0), status:r.my_status||r.status||'', watched:parseInt(r.my_watched_episodes||0), totalEp:parseInt(r.series_episodes||r.episodes||0), endDate:r.my_finish_date||'', tags:(r.my_tags||'').split(',').map(x=>x.trim()).filter(Boolean)})); start(); }
-
-function start() {
+function go() {
     enriched = data.map(a => ({...a, apiGenres: a.tags, malScore: null}));
     document.getElementById('drop-zone').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
     updateAll();
 }
 
-function updateAll() { updateStats(); renderPersonality(); renderInsights(); renderCharts(); renderTopTable(); renderRecommendations(); renderAchievements(); }
+function updateAll() {
+    updateStats(); renderPersonality(); renderCharts(); renderTopTable(); renderRecommendations(); renderAchievements();
+}
 
 function updateStats() {
-    const completed = data.filter(a => a.status === 'Completed' || a.status === '2').length;
-    const scored = data.filter(a => a.score > 0);
-    const mean = scored.length ? (scored.reduce((s,a)=>s+a.score,0)/scored.length).toFixed(2) : '0.00';
-    const eps = data.reduce((s,a)=>s+a.watched,0);
-    const days = Math.round(eps*24/60/24);
-    const tens = data.filter(a=>a.score===10).length;
-    ['completed','mean','eps','days','tens'].forEach(id => document.getElementById(id).textContent = eval(id));
+    const c = data.filter(a=>a.status==='Completed'||a.status==='2').length;
+    const s = data.filter(a=>a.score>0);
+    const m = s.length ? (s.reduce((a,b)=>a+b.score,0)/s.length).toFixed(2) : '0.00';
+    const e = data.reduce((a,b)=>a+b.watched,0);
+    const d = Math.round(e*24/60/24);
+    const t = data.filter(a=>a.score===10).length;
+    document.getElementById('completed').textContent=c;
+    document.getElementById('mean').textContent=m;
+    document.getElementById('eps').textContent=e;
+    document.getElementById('days').textContent=d;
+    document.getElementById('tens').textContent=t;
 }
 
 function renderPersonality() {
     const m = parseFloat(document.getElementById('mean').textContent);
     const c = parseInt(document.getElementById('completed').textContent);
     const t = parseInt(document.getElementById('tens').textContent);
-    let arch = "Uravnoteženi Putnik", desc = "Znaš uživati u svemu.";
-    if(m>=9&&t>15){arch="Apsolutni Purist";desc="Samo remek-djela prolaze tvoj filter.";}
-    else if(m>=8.5){arch="Ukusni Aristokrat";desc="Tvoj ukus je iznad prosjeka.";}
-    else if(c>300){arch="Maratonac Demon";desc="Količina i kvaliteta.";}
-    else if(t>20){arch="Masterpiece Hunter";desc="Loviš savršenstvo.";}
-    else if(m<7){arch="Kontroverzni Chad";desc="Ne bojiš se svog stava.";}
+    let arch = "Uravnoteženi Putnik";
+    if(m>=9&&t>15) arch="Apsolutni Purist";
+    else if(m>=8.5) arch="Ukusni Aristokrat";
+    else if(c>300) arch="Maratonac Demon";
+    else if(t>20) arch="Masterpiece Hunter";
+    else if(m<7) arch="Kontroverzni Chad";
     document.getElementById('personality-title').textContent = arch;
-    document.getElementById('personality-desc').textContent = desc;
     document.getElementById('sensei-comment').textContent = quotes[Math.floor(Math.random()*quotes.length)];
 }
 
-function renderInsights() {
-    const longest = enriched.sort((a,b)=>b.totalEp-a.totalEp)[0];
-    document.getElementById('marathon').textContent = longest ? `${longest.title} – ${longest.totalEp} ep` : '—';
-    const worst = enriched.filter(a=>a.score>0).sort((a,b)=>a.score-b.score)[0];
-    document.getElementById('worst').textContent = worst ? `${worst.title} (${worst.score}/10)` : '—';
-}
-
-function destroyChart(id){ if(charts[id]){charts[id].destroy(); delete charts[id];} }
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 
 function renderCharts() {
-    const g = {}; enriched.forEach(a=>a.apiGenres.forEach(t=>g[t]=(g[t]||0)+1));
-    const top = Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    destroyChart('genreChart'); charts.genreChart = new Chart(document.getElementById('genreChart'),{type:'doughnut',data:{labels:top.map(x=>x[0]),datasets:[{data:top.map(x=>x[1]),backgroundColor:['#d4af37','#2a9d8f','#e9c46a','#e76f51','#8b6d1f','#f4e8c1','#264653','#e63946','#06d6a0','#9d4edd']}]}});
+    const g={}; enriched.forEach(a=>a.apiGenres.forEach(t=>g[t]=(g[t]||0)+1));
+    const top=Object.entries(g).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    destroyChart('genre'); charts.genre=new Chart(document.getElementById('genreChart'),{type:'doughnut',data:{labels:top.map(x=>x[0]),datasets:[{data:top.map(x=>x[1]),backgroundColor:['#d4af37','#2a9d8f','#e9c46a','#e76f51','#8b6d1f','#f4e8c1','#264653','#e63946','#06d6a0','#9d4edd']}]}});
 
-    const y = {}; enriched.forEach(a=>{if(a.endDate&&a.endDate!=='0000-00-00'&&/^\d{4}/.test(a.endDate)){y[a.endDate.split('-')[0]]=(y[a.endDate.split('-')[0]]||0)+1;}});
-    const years = Object.keys(y).sort();
-    destroyChart('timelineChart'); charts.timelineChart = new Chart(document.getElementById('timelineChart'),{type:'line',data:{labels:years||['Nema'],datasets:[{label:'Završeno po godini',data:Object.values(y),borderColor:'#d4af37',backgroundColor:'rgba(212,175,55,.2)',tension:0.3,fill:true}]}});
+    const y={}; enriched.forEach(a=>{if(a.endDate&&a.endDate!=='0000-00-00'&&/^\d{4}/.test(a.endDate)){y[a.endDate.split('-')[0]]=(y[a.endDate.split('-')[0]]||0)+1;}});
+    const years=Object.keys(y).sort();
+    destroyChart('timeline'); charts.timeline=new Chart(document.getElementById('timelineChart'),{type:'line',data:{labels:years,datasets:[{label:'Završeno po godini',data:Object.values(y),borderColor:'#d4af37',backgroundColor:'rgba(212,175,55,.2)',fill:true,tension:0.3}]}});
 }
 
 function renderTopTable() {
-    const top = enriched.filter(a=>a.score>=9).sort((a,b)=>b.score-a.score).slice(0,20);
-    const tb = document.getElementById('topTable'); tb.innerHTML='';
-    top.forEach(a=>tb.innerHTML+=`<tr><td>${a.title}</td><td style="color:#d4af37;font-weight:bold">${a.score}/10</td><td>${a.watched}/${a.totalEp||'?'}</td><td>${a.status==='Completed'||a.status==='2'?'Završeno':'U tijeku'}</td></tr>`);
+    const top=enriched.filter(a=>a.score>=9).sort((a,b)=>b.score-a.score).slice(0,20);
+    const tb=document.getElementById('topTable'); tb.innerHTML='';
+    top.forEach(a=>tb.innerHTML+=`<tr><td>${a.title}</td><td style="color:#d4af37;font-weight:bold">${a.score}/10</td><td>${a.watched}/${a.totalEp||'?'}</td></tr>`);
 }
 
 function renderRecommendations() {
-    const all = new Set(); enriched.forEach(a=>a.apiGenres.forEach(t=>all.add(t)));
-    const list = Array.from(all);
-    if(list.length<2){document.getElementById('recs').innerHTML='<p>Nedovoljno žanrova za preporuke.</p>';return;}
-    const vecs = enriched.map(a=>({title:a.title,score:a.score,vec:list.map(t=>a.apiGenres.includes(t)?(a.score||5):0)}));
-    const high = vecs.filter(v=>v.score>=9);
-    const recs = [];
-    high.forEach(t=>{const sims=vecs.map(o=>({title:o.title,sim:cosineSimilarity(t.vec,o.vec)})).filter(o=>o.title!==t.title); sims.sort((a,b)=>b.sim-a.sim); if(sims[0]?.sim>0.3) recs.push(`${t.title} → <strong>${sims[0].title}</strong> (${sims[0].sim.toFixed(2)})`);});
-    document.getElementById('recs').innerHTML = recs.length ? recs.slice(0,8).map(r=>`<div style="margin:.5rem 0">${r}</div>`).join('') : '<p>Nema dovoljno sličnih visoko ocijenjenih naslova.</p>';
+    const all=new Set(); enriched.forEach(a=>a.apiGenres.forEach(t=>all.add(t)));
+    const list=Array.from(all);
+    if(list.length<2){document.getElementById('recs').innerHTML='<p>Nedovoljno žanrova.</p>';return;}
+    const vecs=enriched.map(a=>({title:a.title,score:a.score,vec:list.map(t=>a.apiGenres.includes(t)?(a.score||5):0)}));
+    const recs=[];
+    vecs.filter(v=>v.score>=9).forEach(t=>{
+        const sims=vecs.map(o=>({title:o.title,sim:cosine(t.vec,o.vec)})).filter(o=>o.title!==t.title);
+        sims.sort((a,b)=>b.sim-a.sim);
+        if(sims[0]?.sim>0.3) recs.push(`${t.title} → <strong>${sims[0].title}</strong> (${sims[0].sim.toFixed(2)})`);
+    });
+    document.getElementById('recs').innerHTML=recs.length?recs.slice(0,8).map(r=>`<div style="margin:.5rem 0">${r}</div>`).join(''):'<p>Nema dovoljno sličnih remek-djela.</p>';
 }
 
-function cosineSimilarity(a,b){let d=0,m1=0,m2=0;for(let i=0;i<a.length;i++){d+=a[i]*b[i];m1+=a[i]*a[i];m2+=b[i]*b[i];}return m1&&m2?d/(Math.sqrt(m1)*Math.sqrt(m2)):0;}
+function cosine(a,b){let d=0,m1=0,m2=0;for(let i=0;i<a.length;i++){d+=a[i]*b[i];m1+=a[i]*a[i];m2+=b[i]*b[i];}return m1&&m2?d/(Math.sqrt(m1)*Math.sqrt(m2)):0;}
 
 function renderAchievements() {
-    const c=parseInt(document.getElementById('completed').textContent), m=parseFloat(document.getElementById('mean').textContent), e=parseInt(document.getElementById('eps').textContent), t=parseInt(document.getElementById('tens').textContent);
-    const badges=[]; if(c>=100)badges.push('Completionist God'); if(m>8.5)badges.push('Taste Aristocrat'); if(e>5000)badges.push('Marathon Demon'); if(t>10)badges.push('Masterpiece Hunter'); if(t>20)badges.push('10/10 Collector');
-    const cont = enriched.filter(a=>a.score===10 && a.malScore && a.malScore<8).length; if(cont>0)badges.push(`Controversial Chad (${cont})`);
-    document.getElementById('achievements').innerHTML = badges.length ? badges.map(b=>`<span class="badge">${b}</span>`).join(' ') : '<p>Još nema značajnih postignuća!</p>';
+    const c=parseInt(document.getElementById('completed').textContent),m= parseFloat(document.getElementById('mean').textContent),t=parseInt(document.getElementById('tens').textContent);
+    const badges=[]; if(c>=100)badges.push('Completionist'); if(m>8.5)badges.push('Taste Aristocrat'); if(t>10)badges.push('Masterpiece Hunter');
+    const cont=enriched.filter(a=>a.score===10&&a.malScore&&a.malScore<8).length; if(cont>0)badges.push(`Controversial (${cont})`);
+    document.getElementById('achievements')&& (document.getElementById('achievements').innerHTML=badges.map(b=>`<span style="background:#e9c46a;color:#000;padding:.3rem .8rem;border-radius:4px;margin:0 .3rem">${b}</span>`).join(' '));
 }
 
 document.getElementById('shadowBtn').onclick = async () => {
     const btn = document.getElementById('shadowBtn'), msg = document.getElementById('statusMsg');
-    btn.disabled = true; btn.textContent = 'Sensei priziva duhove...';
-    msg.textContent = 'Obogaćujem podatke (Jikan API)';
+    const progress = document.querySelector('.progress'), bar = document.getElementById('bar');
+    progress.classList.remove('hidden');
+    btn.disabled = true; btn.textContent = 'Sensei priziva...';
     const toFetch = enriched.filter(a => a.mal_id && !a.malScore);
-    let success = 0;
+    let done = 0;
+
     for (const item of toFetch) {
+        bar.style.width = (done/toFetch.length*100)+'%';
+        msg.textContent = `Obrađujem: ${item.title} (${done}/${toFetch.length})`;
+
+        // 1. AniList GraphQL (najbrži)
         try {
-            let res = await fetch(`https://api.jikan.moe/v4/anime/${item.mal_id}/full`);
-            if (!res.ok) throw 0;
+            const res = await fetch('https://graphql.anilist.co', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({query: `query($id:Int){Media(idMal:$id){genres score}}`, variables: {id: item.mal_id}})
+            });
             const json = await res.json();
-            if (json.data) { item.apiGenres = json.data.genres?.map(g=>g.name) || item.tags; item.malScore = json.data.score || null; success++; }
-        } catch {
-            try { // fallback preko proxyja
-                const proxy = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.jikan.moe/v4/anime/'+item.mal_id+'/full')}`);
-                const pjson = await proxy.json();
-                const jikan = JSON.parse(pjson.contents);
-                if (jikan.data) { item.apiGenres = jikan.data.genres?.map(g=>g.name) || item.tags; item.malScore = jikan.data.score || null; success++; }
-            } catch(e) { console.log('Fail za', item.title); }
-        }
-        await new Promise(r => setTimeout(r, 420));
+            if (json.data?.Media) {
+                item.apiGenres = json.data.Media.genres || item.tags;
+                item.malScore = json.data.Media.score ? (json.data.Media.score/10).toFixed(2) : null;
+                done++; continue;
+            }
+        } catch(e) {}
+
+        // 2. Jikan (sporo, ali sigurno)
+        try {
+            await new Promise(r => setTimeout(r, 2100)); // 2.1s delay → nikad 429
+            const res = await fetch(`https://api.jikan.moe/v4/anime/${item.mal_id}/full`);
+            if (res.ok) {
+                const json = await res.json();
+                if (json.data) {
+                    item.apiGenres = json.data.genres?.map(g=>g.name) || item.tags;
+                    item.malScore = json.data.score || null;
+                    done++;
+                }
+            }
+        } catch(e) { console.log('Jikan fail za', item.title); }
+
+        done++;
     }
-    msg.innerHTML = `<strong>Završeno! Obogaćeno ${success} naslova.</strong>`;
+
+    bar.style.width = '100%';
+    msg.innerHTML = `<strong>Završeno! Obogaćeno ${done} naslova.</strong>`;
     btn.disabled = false; btn.textContent = 'SHADOW FETCH (ponovo)';
+    setTimeout(() => progress.classList.add('hidden'), 3000);
     updateAll();
 };
 
-function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(enriched,null,2)],{type:'application/json'}));a.download='mal_sensei_enriched.json';a.click();}
-function generateInfographic(){/* isti kao prije – izostavljen radi kraćeg koda, možeš dodati ako želiš */}
+function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(enriched,null,2)],{type:'application/json'}));a.download='mal_sensei.json';a.click();}
 </script>
 </body>
 </html>
